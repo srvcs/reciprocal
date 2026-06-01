@@ -1,74 +1,74 @@
 # srvcs-reciprocal
 
-Arithmetic microservice for srvcs.cloud computing `1 / value`.
+## Name
 
-## Concern
+| Field | Value |
+| --- | --- |
+| Service | `srvcs-reciprocal` |
+| Slug | `reciprocal` |
+| Repository | `srvcs/reciprocal` |
+| Package | `srvcs-reciprocal` |
+| Kind | `orchestrator` |
 
-`arithmetic: 1 / value`
+## Function
 
-This is an **orchestrator**: it owns the control flow but delegates the
-arithmetic to [`srvcs-floatdivide`](https://github.com/srvcs/floatdivide). The
-result is a floating-point number (an f64 that may be fractional).
+arithmetic: 1 / value
 
-It does **not** call `srvcs-isnumber` directly — input validation propagates
-from its dependency: when `value` is `0`, `srvcs-floatdivide` rejects the zero
-divisor with `422` and this service forwards it verbatim.
+## Dependencies
+
+| Dependency | Repository |
+| --- | --- |
+| `srvcs-floatdivide` | [srvcs/floatdivide](https://github.com/srvcs/floatdivide) |
 
 ## API
 
-### `GET /`
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/` | Service identity |
+| `POST` | `/` | Evaluate the service function |
+| `GET` | `/healthz` | Liveness probe |
+| `GET` | `/readyz` | Readiness probe |
+| `GET` | `/metrics` | Prometheus metrics |
+| `GET` | `/openapi.json` | OpenAPI document |
 
-Service identity.
+## Inputs
 
-```json
-{
-  "service": "srvcs-reciprocal",
-  "concern": "arithmetic: 1 / value",
-  "depends_on": ["srvcs-floatdivide"]
-}
-```
+| Name | Type | Required |
+| --- | --- | --- |
+| `value` | `number` | yes |
 
-### `POST /`
+## Outputs
 
-Request:
-
-```json
-{ "value": 4 }
-```
-
-Response `200`:
-
-```json
-{ "value": 4, "result": 0.25 }
-```
-
-`result` is `(call srvcs-floatdivide {"a": 1, "b": value}).result`, an f64.
-
-Status codes:
-
-- `200` — the reciprocal `1 / value`.
-- `422` — the dependency rejected the input (forwarded), e.g. `value` is `0`.
-- `500` — a dependency returned a malformed result.
-- `503` — a dependency is unavailable.
+| Name | Type |
+| --- | --- |
+| `value` | `number` |
+| `result` | `number` |
 
 ## Configuration
 
-| Variable                | Default                 | Purpose                          |
-| ----------------------- | ----------------------- | -------------------------------- |
-| `SRVCS_BIND_ADDR`       | `0.0.0.0:8080`          | Listen address.                  |
-| `SRVCS_FLOATDIVIDE_URL` | `http://127.0.0.1:8090` | Base URL of `srvcs-floatdivide`. |
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `SRVCS_BIND_ADDR` | `0.0.0.0:8080` | Bind address |
+| `SRVCS_ENV` | `development` | Environment label for logs |
+| `RUST_LOG` | `info,tower_http=info` | Tracing filter |
+| `SRVCS_FLOATDIVIDE_URL` | `http://127.0.0.1:8090` | Base URL for srvcs-floatdivide |
 
-## Local checks
+## Error Behavior
+
+- `422` means the request could not be evaluated for the documented input shape.
+- `503` means a required dependency was unavailable or returned an unexpected response.
+- Dependency validation errors are forwarded when this service delegates validation.
+
+## Local Checks
 
 ```sh
-nix flake check -L
-nix develop -c sh -euc 'cargo fmt --check; cargo clippy --all-targets -- -D warnings; cargo test'
-nix build .#default -L
+cargo fmt --check
+cargo clippy --all-targets -- -D warnings
+cargo test
 ```
 
-The Linux container is exposed as `.#container`. On Apple Silicon, use
-`linux/arm64` for the practical local check; CI builds the release image on
-native `x86_64-linux`.
+See the [srvcs service standard](https://github.com/srvcs/platform/blob/main/STANDARD.md) for the full operational contract.
 
-See [`srvcs/platform`](https://github.com/srvcs/platform) for the shared service
-standard and CI workflow.
+## Metadata
+
+Machine-readable service metadata lives in `srvcs.yaml`. Keep it aligned with this README when the service contract changes.
